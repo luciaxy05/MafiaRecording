@@ -1172,6 +1172,8 @@ function applyAdminState() {
       document.querySelector('[data-tab="leaderboard"]').click();
     }
   }
+  // Re-render leaderboard so blackbox buttons appear/disappear immediately
+  renderLeaderboard();
 }
 
 // Lock button — toggle login/logout
