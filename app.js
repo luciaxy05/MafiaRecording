@@ -201,6 +201,7 @@ async function saveGame(game) {
         role:      p.role    || null,
         side_id:   p.sideId  || null,
         outcome:   p.outcome || null,
+        adjustment: p.adjustment || null,
       }));
       await sb.insert('participants', rows);
 
