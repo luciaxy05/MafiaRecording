@@ -1145,3 +1145,81 @@ select option {
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+
+/* ═══════════════════════════════════════════
+   JUPITER COUPLE SELECTION
+═══════════════════════════════════════════ */
+.couple-info {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.couple-selects {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.couple-selects .form-group { flex: 1; min-width: 140px; }
+
+.couple-heart {
+  font-size: 1.5rem;
+  padding-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.couple-type-indicator {
+  margin-top: 0.75rem;
+}
+
+.couple-type {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius);
+}
+
+.couple-type.mixed {
+  background: rgba(212,168,76,0.15);
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+}
+
+.couple-type.same {
+  background: rgba(42,90,42,0.2);
+  border: 1px solid #3a7a3a;
+  color: #70c070;
+}
+
+/* Couple wins button */
+.winner-btn.side-couple {
+  border-color: rgba(255,100,180,0.4);
+  color: var(--text-muted);
+}
+
+.winner-btn.side-couple:hover {
+  border-color: rgba(255,100,180,0.7);
+  color: #ffaadd;
+}
+
+.winner-btn.side-couple.winner-active {
+  border-color: #ff64b4;
+  background: rgba(255,100,180,0.2);
+  color: #ffaadd;
+}
+
+.couple-btn-hidden {
+  display: none !important;
+}
+
+/* Couple badge in history */
+.badge-couple {
+  background: rgba(255,100,180,0.15);
+  color: #ffaadd;
+  border: 1px solid rgba(255,100,180,0.4);
+}

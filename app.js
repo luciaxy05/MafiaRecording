@@ -88,11 +88,6 @@ const GAME_MODES = {
         id: 'wolf', label: '🐺 Wolf Side', color: 'side-wolf',
         roles: [
           { role: 'Werewolf',  count: 3 },
-        ],
-      },
-      {
-        id: 'whitewolf', label: '🤍 White Wolf', color: 'side-whitewolf',
-        roles: [
           { role: 'WhiteWolf', count: 1 },
         ],
       },
@@ -100,9 +95,10 @@ const GAME_MODES = {
         id: 'village', label: '🏘 Village Side', color: 'side-village',
         roles: [
           { role: 'Prophet', count: 1 },
-          { role: 'Knight',        count: 1 },
-          { role: 'Guard',         count: 1 },
-          { role: 'Witch',         count: 1 },
+          { role: 'Knight',  count: 1 },
+          { role: 'Guard',   count: 1 },
+          { role: 'Witch',   count: 1 },
+          { role: 'Peasant', count: 4 },
         ],
       },
     ],
@@ -118,18 +114,13 @@ const GAME_MODES = {
         ],
       },
       {
-        id: 'jupiter', label: '⚡ Jupiter Side', color: 'side-jupiter',
-        roles: [
-          { role: 'Jupiter', count: 1 },
-        ],
-      },
-      {
         id: 'village', label: '🏘 Village Side', color: 'side-village',
         roles: [
+          { role: 'Jupiter', count: 1 },
           { role: 'Prophet', count: 1 },
-          { role: 'Witch',         count: 1 },
-          { role: 'Hunter',        count: 1 },
-          { role: 'Peasant',       count: 4 },
+          { role: 'Witch',   count: 1 },
+          { role: 'Hunter',  count: 1 },
+          { role: 'Peasant', count: 4 },
         ],
       },
     ],
@@ -145,9 +136,11 @@ let state = {
 };
 
 // Current game-logging session
-let activeMode   = null;  // key in GAME_MODES
-let selectedWinner = null; // sideId string
-let watcherCount = 0;
+let activeMode     = null;  // key in GAME_MODES
+let selectedWinner = null;  // sideId string
+let watcherCount   = 0;
+let couplePlayer1  = null;  // playerId
+let couplePlayer2  = null;  // playerId
 
 // ═══════════════════════════════════════════
 //  PERSISTENCE — Supabase + localStorage fallback
@@ -492,10 +485,16 @@ document.querySelectorAll('.mode-card').forEach(card => {
 function activateMode(modeKey) {
   activeMode     = modeKey;
   selectedWinner = null;
+  couplePlayer1  = null;
+  couplePlayer2  = null;
 
   document.getElementById('log-step-mode').style.display   = 'none';
   document.getElementById('log-step-assign').style.display = 'block';
   document.getElementById('active-mode-label').textContent = tMode(modeKey);
+
+  // Show/hide Jupiter couple section
+  const coupleSection = document.getElementById('jupiter-couple-section');
+  coupleSection.style.display = modeKey === 'Jupiter' ? 'block' : 'none';
 
   buildRoleAssignmentUI(modeKey);
   buildWinnerButtons(modeKey);
@@ -513,6 +512,10 @@ document.getElementById('back-to-mode-btn').addEventListener('click', () => {
   activeMode     = null;
   selectedWinner = null;
   watcherCount   = 0;
+  couplePlayer1  = null;
+  couplePlayer2  = null;
+  document.getElementById('jupiter-couple-section').style.display = 'none';
+  document.getElementById('couple-type-indicator').innerHTML = '';
 });
 
 // ═══════════════════════════════════════════
@@ -535,7 +538,18 @@ function buildRoleAssignmentUI(modeKey) {
   }).join('');
 
   // Wire up "new player" option in every select
-  container.querySelectorAll('.player-select').forEach(wirePlayerSelect);
+  container.querySelectorAll('.player-select').forEach(sel => {
+    wirePlayerSelect(sel);
+    // For Jupiter: refresh couple dropdowns when any role assignment changes
+    if (activeMode === 'Jupiter') {
+      sel.addEventListener('change', () => {
+        setTimeout(populateCoupleDropdowns, 0);
+      });
+    }
+  });
+
+  // Populate couple dropdowns immediately (handles pre-filled edits)
+  if (activeMode === 'Jupiter') populateCoupleDropdowns();
 }
 
 function buildRoleRow(sideId, role, index, total) {
@@ -588,18 +602,109 @@ function refreshAllPlayerSelects() {
 function buildWinnerButtons(modeKey) {
   const mode      = GAME_MODES[modeKey];
   const container = document.getElementById('winner-side-container');
-  container.innerHTML = mode.sides.map(side => `
+  let btns = mode.sides.map(side => `
     <button class="winner-btn ${side.color}" data-side="${side.id}"
       onclick="selectWinner('${side.id}', this)">
       ${tSide(side.id)} ${t('winsLabel')}
     </button>`
   ).join('');
+
+  // For Jupiter: conditionally add a Couple wins button if couple is mixed-side
+  if (modeKey === 'Jupiter') {
+    btns += `<button class="winner-btn side-couple couple-btn-hidden" id="couple-win-btn"
+      data-side="couple" onclick="selectWinner('couple', this)">
+      💕 ${t('coupleWins')}
+    </button>`;
+  }
+  container.innerHTML = btns;
+}
+
+function updateCoupleWinButton() {
+  const btn = document.getElementById('couple-win-btn');
+  if (!btn) return;
+  const isMixed = isMixedCouple();
+  btn.classList.toggle('couple-btn-hidden', !isMixed);
+  // If couple button is now hidden but was selected, clear winner
+  if (!isMixed && selectedWinner === 'couple') {
+    selectedWinner = null;
+    document.querySelectorAll('.winner-btn').forEach(b => b.classList.remove('winner-active'));
+  }
 }
 
 function selectWinner(sideId, btn) {
   selectedWinner = sideId;
   document.querySelectorAll('.winner-btn').forEach(b => b.classList.remove('winner-active'));
   btn.classList.add('winner-active');
+}
+
+// ─── Jupiter couple helpers ───────────────────────────────────────────────
+
+/** Get the sideId of an assigned player by their playerId */
+function getPlayerSideId(playerId) {
+  const row = document.querySelector(`#sides-container .role-row select[value="${playerId}"]`);
+  if (row) return row.closest('.role-row').dataset.side;
+  // Fallback: scan all role-row selects
+  for (const sel of document.querySelectorAll('#sides-container .role-row select')) {
+    if (sel.value === playerId) return sel.closest('.role-row').dataset.side;
+  }
+  return null;
+}
+
+/** Returns true if couple is one wolf + one villager */
+function isMixedCouple() {
+  if (!couplePlayer1 || !couplePlayer2) return false;
+  const side1 = getPlayerSideId(couplePlayer1);
+  const side2 = getPlayerSideId(couplePlayer2);
+  if (!side1 || !side2) return false;
+  // Mixed = one wolf side, one village side
+  return (side1 === 'wolf' && side2 === 'village') ||
+         (side1 === 'village' && side2 === 'wolf');
+}
+
+/** Update the couple type indicator label */
+function updateCoupleIndicator() {
+  const el = document.getElementById('couple-type-indicator');
+  if (!el) return;
+  if (!couplePlayer1 || !couplePlayer2) { el.innerHTML = ''; return; }
+  const side1 = getPlayerSideId(couplePlayer1);
+  const side2 = getPlayerSideId(couplePlayer2);
+  if (!side1 || !side2) { el.innerHTML = ''; return; }
+
+  if (isMixedCouple()) {
+    el.innerHTML = `<span class="couple-type mixed">${t('coupleMixed')}</span>`;
+  } else {
+    el.innerHTML = `<span class="couple-type same">${t('coupleSameSide')}</span>`;
+  }
+  updateCoupleWinButton();
+}
+
+/** Populate the couple dropdowns with currently assigned players */
+function populateCoupleDropdowns() {
+  const sel1 = document.getElementById('couple-player-1');
+  const sel2 = document.getElementById('couple-player-2');
+  if (!sel1 || !sel2) return;
+
+  // Gather all assigned players from role rows
+  const assigned = [];
+  document.querySelectorAll('#sides-container .role-row').forEach(row => {
+    const pid = row.querySelector('select').value;
+    if (pid && pid !== '__new__') {
+      const player = getPlayerById(pid);
+      if (player) assigned.push({ id: pid, name: player.name, side: row.dataset.side });
+    }
+  });
+
+  const opts = (currentVal) => `
+    <option value="">${t('coupleSelectPh')}</option>
+    ${assigned.map(a =>
+      `<option value="${a.id}" ${a.id === currentVal ? 'selected' : ''}>${esc(a.name)}</option>`
+    ).join('')}`;
+
+  sel1.innerHTML = opts(couplePlayer1 || '');
+  sel2.innerHTML = opts(couplePlayer2 || '');
+
+  sel1.onchange = () => { couplePlayer1 = sel1.value || null; updateCoupleIndicator(); };
+  sel2.onchange = () => { couplePlayer2 = sel2.value || null; updateCoupleIndicator(); };
 }
 
 // ═══════════════════════════════════════════
@@ -637,6 +742,19 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
   const doubleScore = document.getElementById('double-score-toggle').checked;
   if (!date)        { toast(t('toastSelectDate')); return; }
   if (!activeMode)  { toast(t('toastSelectMode')); return; }
+
+  // Jupiter: validate couple selection
+  if (activeMode === 'Jupiter') {
+    if (!couplePlayer1 || !couplePlayer2) {
+      toast(t('toastSelectCouple')); return;
+    }
+    if (couplePlayer1 === couplePlayer2) {
+      toast(t('toastCoupleSamePlayer')); return;
+    }
+    // Refresh couple dropdowns to ensure they reflect final role assignments
+    populateCoupleDropdowns();
+  }
+
   if (!selectedWinner) { toast(t('toastSelectWinner')); return; }
 
   // Collect role assignments
@@ -661,7 +779,13 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     }
     seenIds.add(playerId);
 
-    const outcome = sideId === selectedWinner ? 'won' : 'lost';
+    let outcome;
+    if (selectedWinner === 'couple') {
+      // Couple wins: only the 2 coupled players win, everyone else loses
+      outcome = (playerId === couplePlayer1 || playerId === couplePlayer2) ? 'won' : 'lost';
+    } else {
+      outcome = sideId === selectedWinner ? 'won' : 'lost';
+    }
     participants.push({ playerId, status: 'played', role, sideId, outcome });
   });
 
@@ -681,7 +805,8 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
 
   if (!valid) return;
 
-  const game = { id: uid(), date, notes, mode: activeMode, doubleScore, participants };
+  const coupleIds = activeMode === 'Jupiter' ? [couplePlayer1, couplePlayer2] : null;
+  const game = { id: uid(), date, notes, mode: activeMode, doubleScore, coupleIds, participants };
   const btn  = document.getElementById('save-game-btn');
   btn.disabled   = true;
   btn.textContent = t('savingBtn');
@@ -705,6 +830,10 @@ function resetLogForm() {
   document.getElementById('game-date').value              = todayISO();
   document.getElementById('game-notes').value             = '';
   document.getElementById('double-score-toggle').checked  = false;
+  couplePlayer1 = null;
+  couplePlayer2 = null;
+  document.getElementById('jupiter-couple-section').style.display = 'none';
+  document.getElementById('couple-type-indicator').innerHTML      = '';
   document.getElementById('log-step-assign').style.display = 'none';
   document.getElementById('log-step-mode').style.display   = 'block';
   document.getElementById('sides-container').innerHTML      = '';
@@ -811,6 +940,7 @@ function renderHistory() {
             <span class="history-date">${formatDate(game.date)}</span>
             ${modeLabel ? `<span class="badge badge-mode">${esc(modeLabel)}</span>` : ''}
             ${(game.double_score || game.doubleScore) ? `<span class="badge badge-double">${t('badgeDouble')}</span>` : ''}
+            ${(game.coupleIds) ? `<span class="badge badge-couple">💕</span>` : ''}
             ${game.notes ? `<span class="history-notes">${esc(game.notes)}</span>` : ''}
           </div>
           <div class="history-summary">${t('historySummary', played, watched)}</div>

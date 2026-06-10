@@ -60,6 +60,16 @@ const TRANSLATIONS = {
     step1Label:      '第一步 — 选择游戏模式',
     step2Label:      '第二步 — 为每个角色分配玩家',
     step3Label:      '第三步 — 哪一方获胜？',
+    stepCoupleLabel: '第二点五步 — 木星选择情侣',
+    coupleDesc:      '木星选择两名玩家组成情侣。若情侣为一狼一民，则增加第三胜利条件。',
+    couplePlayer1:   '情侣玩家 1',
+    couplePlayer2:   '情侣玩家 2',
+    coupleSelectPh:  '— 选择玩家 —',
+    coupleWins:      '情侣获胜',
+    coupleMixed:     '⚠️ 混合情侣 — 情侣胜利条件已启用',
+    coupleSameSide:  '✓ 同阵营情侣 — 无额外胜利条件',
+    toastSelectCouple:    '木星模式需要选择两名情侣玩家。',
+    toastCoupleSamePlayer:'情侣必须是两名不同的玩家。',
     changeModeBtn:   '← 返回选模式',
     watchersTitle:   '围观（可选）',
     addWatcherBtn:   '+ 添加围观者',
@@ -85,7 +95,6 @@ const TRANSLATIONS = {
     // ── Sides ───────────────────────────────
     sideWolf:       '🐺 狼人阵营',
     sideVillage:    '🏘 村民阵营',
-    sideWhiteWolf:  '🤍 白狼王',
     sideJupiter:    '⚡ 丘比特阵营',
 
     // ── Roles ───────────────────────────────
@@ -215,6 +224,16 @@ const TRANSLATIONS = {
     step1Label:      'STEP 1 — Select a game mode',
     step2Label:      'STEP 2 — Assign players to each role',
     step3Label:      'STEP 3 — Who won?',
+    stepCoupleLabel: 'STEP 2.5 — Jupiter selects a couple',
+    coupleDesc:      'Jupiter picks 2 players to form a couple. If they are from opposite sides, a third win condition is unlocked.',
+    couplePlayer1:   'Couple Player 1',
+    couplePlayer2:   'Couple Player 2',
+    coupleSelectPh:  '— Select player —',
+    coupleWins:      'Couple Wins',
+    coupleMixed:     '⚠️ Mixed couple — Couple win condition enabled',
+    coupleSameSide:  '✓ Same-side couple — No extra win condition',
+    toastSelectCouple:    'Please select 2 players for Jupiter couple.',
+    toastCoupleSamePlayer:'The couple must be 2 different players.',
     changeModeBtn:   '← Change Mode',
     watchersTitle:   'Watchers (optional)',
     addWatcherBtn:   '+ Add Watcher',
@@ -238,8 +257,6 @@ const TRANSLATIONS = {
 
     sideWolf:       '🐺 Wolf Side',
     sideVillage:    '🏘 Village Side',
-    sideWhiteWolf:  '🤍 White Wolf',
-    sideJupiter:    '⚡ Jupiter Side',
 
     roleWerewolf:     'Werewolf',
     roleHeadWolf:     'Gargoyle',
@@ -357,8 +374,6 @@ function tRole(englishRole) {
 const SIDE_KEY_MAP = {
   'wolf':      'sideWolf',
   'village':   'sideVillage',
-  'whitewolf': 'sideWhiteWolf',
-  'jupiter':   'sideJupiter',
 };
 
 function tSide(sideId) {

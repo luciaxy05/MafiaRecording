@@ -123,6 +123,29 @@
           <p class="step-label" data-i18n="step2Label">第二步 — 为每个角色分配玩家</p>
           <div id="sides-container"></div>
 
+          <!-- JUPITER COUPLE STEP — only shown for Jupiter mode -->
+          <div id="jupiter-couple-section" style="display:none">
+            <hr class="divider" />
+            <p class="step-label" data-i18n="stepCoupleLabel">第二点五步 — 丘比特选择情侣</p>
+            <div class="couple-info" data-i18n="coupleDesc">丘比特选择两名玩家组成情侣。若情侣为一狼一民，则增加第三胜利条件。</div>
+            <div class="couple-selects">
+              <div class="form-group">
+                <label data-i18n="couplePlayer1">情侣玩家 1</label>
+                <select id="couple-player-1">
+                  <option value="" data-i18n="coupleSelectPh">— 选择玩家 —</option>
+                </select>
+              </div>
+              <div class="couple-heart">💕</div>
+              <div class="form-group">
+                <label data-i18n="couplePlayer2">情侣玩家 2</label>
+                <select id="couple-player-2">
+                  <option value="" data-i18n="coupleSelectPh">— 选择玩家 —</option>
+                </select>
+              </div>
+            </div>
+            <div id="couple-type-indicator" class="couple-type-indicator"></div>
+          </div>
+
           <hr class="divider" />
           <p class="step-label" data-i18n="step3Label">第三步 — 哪一方获胜？</p>
           <div id="winner-side-container" class="winner-side-grid"></div>
@@ -130,8 +153,8 @@
           <hr class="divider" />
 
           <div class="participants-header">
-            <h3 data-i18n="watchersTitle">围观者（可选）</h3>
-            <button class="btn btn-secondary" id="add-watcher-btn" data-i18n="addWatcherBtn">+ 添加围观者</button>
+            <h3 data-i18n="watchersTitle">旁观者（可选）</h3>
+            <button class="btn btn-secondary" id="add-watcher-btn" data-i18n="addWatcherBtn">+ 添加旁观者</button>
           </div>
           <div id="watcher-list"></div>
 
