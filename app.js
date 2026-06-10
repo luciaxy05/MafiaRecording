@@ -12,8 +12,6 @@ let isAdmin = sessionStorage.getItem('mafiaAdmin') === 'yes';
 const SCORE = { WIN: 25, LOSS: 17, WATCH: 15 };
 
 // ─── Game Mode Definitions ───────────────────
-// Each mode defines sides[], each side has a label, color, and roles[]
-// roles[] entries: { role: string, count: number }
 const GAME_MODES = {
   TombKeeper: {
     label: 'TombKeeper',
@@ -28,11 +26,11 @@ const GAME_MODES = {
       {
         id: 'village', label: '🏘 Village Side', color: 'side-village',
         roles: [
-          { role: 'Prophet', count: 1 },
-          { role: 'TombKeeper',     count: 1 },
-          { role: 'Hunter',        count: 1 },
-          { role: 'Witch',         count: 1 },
-          { role: 'Peasant',       count: 4 },
+          { role: 'Prophet',    count: 1 },
+          { role: 'TombKeeper', count: 1 },
+          { role: 'Hunter',     count: 1 },
+          { role: 'Witch',      count: 1 },
+          { role: 'Peasant',    count: 4 },
         ],
       },
     ],
@@ -51,10 +49,10 @@ const GAME_MODES = {
         id: 'village', label: '🏘 Village Side', color: 'side-village',
         roles: [
           { role: 'Prophet', count: 1 },
-          { role: 'Witch',         count: 1 },
-          { role: 'Hunter',        count: 1 },
-          { role: 'Guard',         count: 1 },
-          { role: 'Peasant',       count: 4 },
+          { role: 'Witch',   count: 1 },
+          { role: 'Hunter',  count: 1 },
+          { role: 'Guard',   count: 1 },
+          { role: 'Peasant', count: 4 },
         ],
       },
     ],
@@ -73,9 +71,9 @@ const GAME_MODES = {
         id: 'village', label: '🏘 Village Side', color: 'side-village',
         roles: [
           { role: 'Prophet', count: 1 },
-          { role: 'Witch',         count: 1 },
-          { role: 'Hunter',        count: 1 },
-          { role: 'Peasant',       count: 3 },
+          { role: 'Witch',   count: 1 },
+          { role: 'Hunter',  count: 1 },
+          { role: 'Peasant', count: 3 },
         ],
       },
     ],
@@ -131,16 +129,15 @@ const GAME_MODES = {
 //  STATE
 // ═══════════════════════════════════════════
 let state = {
-  players: [],  // { id, name }
-  games:   [],  // { id, date, notes, mode, participants: [{ playerId, status, role, sideId, outcome }] }
+  players: [],
+  games:   [],
 };
 
-// Current game-logging session
-let activeMode     = null;  // key in GAME_MODES
-let selectedWinner = null;  // sideId string
+let activeMode     = null;
+let selectedWinner = null;
 let watcherCount   = 0;
-let couplePlayer1  = null;  // playerId
-let couplePlayer2  = null;  // playerId
+let couplePlayer1  = null;
+let couplePlayer2  = null;
 
 // ═══════════════════════════════════════════
 //  PERSISTENCE — Supabase + localStorage fallback
@@ -154,11 +151,15 @@ async function loadState() {
         sb.select('participants'),
       ]);
 
-      // Attach participants to their games
       state.players = players;
       state.games   = games.map(g => ({
         ...g,
-        participants: participants.filter(p => p.game_id === g.id),
+        participants: participants.filter(p => p.game_id === g.id).map(p => ({
+          ...p,
+          playerId:   p.player_id,
+          sideId:     p.side_id,
+          adjustment: p.adjustment || 0,
+        })),
       }));
 
       showBanner(t('bannerConnected'), 'info');
@@ -183,24 +184,23 @@ function loadLocalState() {
 async function saveGame(game) {
   if (isSupabaseConfigured()) {
     try {
-      // Insert game row
       const [inserted] = await sb.insert('games', {
         id:           game.id,
         date:         game.date,
-        notes:        game.notes        || null,
-        mode:         game.mode         || null,
-        double_score: game.doubleScore  || false,
+        notes:        game.notes       || null,
+        mode:         game.mode        || null,
+        double_score: game.doubleScore || false,
       });
       const gameId = inserted.id;
 
-      // Insert all participants
+      // ── FIXED: include adjustment in every participant row ──
       const rows = game.participants.map(p => ({
-        game_id:   gameId,
-        player_id: p.playerId,
-        status:    p.status,
-        role:      p.role    || null,
-        side_id:   p.sideId  || null,
-        outcome:   p.outcome || null,
+        game_id:    gameId,
+        player_id:  p.playerId,
+        status:     p.status,
+        role:       p.role       || null,
+        side_id:    p.sideId     || null,
+        outcome:    p.outcome    || null,
         adjustment: p.adjustment || null,
       }));
       await sb.insert('participants', rows);
@@ -211,7 +211,6 @@ async function saveGame(game) {
       toast(t('toastCloudFail'));
     }
   }
-  // Fallback: localStorage
   state.games.unshift(game);
   localStorage.setItem('mafiaStats', JSON.stringify(state));
   return game.id;
@@ -295,7 +294,6 @@ function computePlayerStats(playerId) {
   for (const game of state.games) {
     const p = game.participants.find(x => (x.playerId || x.player_id) === playerId);
     if (!p) continue;
-    // Blackbox adjustment — add raw delta directly, don't count as a game
     if (game.mode === 'blackbox') {
       score += (p.adjustment || p.delta || 0);
       continue;
@@ -456,7 +454,7 @@ function renderPlayersList() {
           <div class="player-card-name">${esc(p.name)}</div>
           <div class="player-card-stats">${t('playerCardStats', s.totalGames, s.score, s.winRate)}</div>
         </div>
-        <button class="btn-icon" title="Remove player" onclick="removePlayer('${p.id}')">🗑</button>
+        <button class="btn-icon admin-action" title="Remove player" onclick="removePlayer('${p.id}')" style="display:${isAdmin?'':'none'}">🗑</button>
       </div>`;
     }).join('')
   }</div>`;
@@ -498,7 +496,6 @@ function activateMode(modeKey) {
   document.getElementById('log-step-assign').style.display = 'block';
   document.getElementById('active-mode-label').textContent = tMode(modeKey);
 
-  // Show/hide Jupiter couple section
   const coupleSection = document.getElementById('jupiter-couple-section');
   coupleSection.style.display = modeKey === 'Jupiter' ? 'block' : 'none';
 
@@ -511,7 +508,6 @@ function activateMode(modeKey) {
 document.getElementById('back-to-mode-btn').addEventListener('click', () => {
   document.getElementById('log-step-assign').style.display  = 'none';
   document.getElementById('log-step-mode').style.display    = 'block';
-  // Clear all role/winner/watcher state so the next mode starts completely fresh
   document.getElementById('sides-container').innerHTML       = '';
   document.getElementById('winner-side-container').innerHTML = '';
   document.getElementById('watcher-list').innerHTML          = '';
@@ -543,10 +539,8 @@ function buildRoleAssignmentUI(modeKey) {
       </div>`;
   }).join('');
 
-  // Wire up "new player" option in every select
   container.querySelectorAll('.player-select').forEach(sel => {
     wirePlayerSelect(sel);
-    // For Jupiter: refresh couple dropdowns when any role assignment changes
     if (activeMode === 'Jupiter') {
       sel.addEventListener('change', () => {
         setTimeout(populateCoupleDropdowns, 0);
@@ -554,7 +548,6 @@ function buildRoleAssignmentUI(modeKey) {
     }
   });
 
-  // Populate couple dropdowns immediately (handles pre-filled edits)
   if (activeMode === 'Jupiter') populateCoupleDropdowns();
 }
 
@@ -579,7 +572,6 @@ function wirePlayerSelect(sel) {
     if (sel.value === '__new__') {
       const player = await showQuickAdd();
       if (player) {
-        // Refresh all selects and pick the new player in this one
         refreshAllPlayerSelects();
         sel.value = player.id;
       } else {
@@ -615,7 +607,6 @@ function buildWinnerButtons(modeKey) {
     </button>`
   ).join('');
 
-  // For Jupiter: conditionally add a Couple wins button if couple is mixed-side
   if (modeKey === 'Jupiter') {
     btns += `<button class="winner-btn side-couple couple-btn-hidden" id="couple-win-btn"
       data-side="couple" onclick="selectWinner('couple', this)">
@@ -630,7 +621,6 @@ function updateCoupleWinButton() {
   if (!btn) return;
   const isMixed = isMixedCouple();
   btn.classList.toggle('couple-btn-hidden', !isMixed);
-  // If couple button is now hidden but was selected, clear winner
   if (!isMixed && selectedWinner === 'couple') {
     selectedWinner = null;
     document.querySelectorAll('.winner-btn').forEach(b => b.classList.remove('winner-active'));
@@ -644,30 +634,22 @@ function selectWinner(sideId, btn) {
 }
 
 // ─── Jupiter couple helpers ───────────────────────────────────────────────
-
-/** Get the sideId of an assigned player by their playerId */
 function getPlayerSideId(playerId) {
-  const row = document.querySelector(`#sides-container .role-row select[value="${playerId}"]`);
-  if (row) return row.closest('.role-row').dataset.side;
-  // Fallback: scan all role-row selects
   for (const sel of document.querySelectorAll('#sides-container .role-row select')) {
     if (sel.value === playerId) return sel.closest('.role-row').dataset.side;
   }
   return null;
 }
 
-/** Returns true if couple is one wolf + one villager */
 function isMixedCouple() {
   if (!couplePlayer1 || !couplePlayer2) return false;
   const side1 = getPlayerSideId(couplePlayer1);
   const side2 = getPlayerSideId(couplePlayer2);
   if (!side1 || !side2) return false;
-  // Mixed = one wolf side, one village side
   return (side1 === 'wolf' && side2 === 'village') ||
          (side1 === 'village' && side2 === 'wolf');
 }
 
-/** Update the couple type indicator label */
 function updateCoupleIndicator() {
   const el = document.getElementById('couple-type-indicator');
   if (!el) return;
@@ -675,7 +657,6 @@ function updateCoupleIndicator() {
   const side1 = getPlayerSideId(couplePlayer1);
   const side2 = getPlayerSideId(couplePlayer2);
   if (!side1 || !side2) { el.innerHTML = ''; return; }
-
   if (isMixedCouple()) {
     el.innerHTML = `<span class="couple-type mixed">${t('coupleMixed')}</span>`;
   } else {
@@ -684,13 +665,11 @@ function updateCoupleIndicator() {
   updateCoupleWinButton();
 }
 
-/** Populate the couple dropdowns with currently assigned players */
 function populateCoupleDropdowns() {
   const sel1 = document.getElementById('couple-player-1');
   const sel2 = document.getElementById('couple-player-2');
   if (!sel1 || !sel2) return;
 
-  // Gather all assigned players from role rows
   const assigned = [];
   document.querySelectorAll('#sides-container .role-row').forEach(row => {
     const pid = row.querySelector('select').value;
@@ -724,7 +703,7 @@ function addWatcherRow() {
   const id   = ++watcherCount;
   const list = document.getElementById('watcher-list');
   const row  = document.createElement('div');
-  row.className    = 'watcher-row';
+  row.className     = 'watcher-row';
   row.dataset.rowId = id;
   row.innerHTML = `
     <div class="form-group" style="flex:1">
@@ -746,10 +725,9 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
   const date        = document.getElementById('game-date').value;
   const notes       = document.getElementById('game-notes').value.trim();
   const doubleScore = document.getElementById('double-score-toggle').checked;
-  if (!date)        { toast(t('toastSelectDate')); return; }
-  if (!activeMode)  { toast(t('toastSelectMode')); return; }
+  if (!date)       { toast(t('toastSelectDate')); return; }
+  if (!activeMode) { toast(t('toastSelectMode')); return; }
 
-  // Jupiter: validate couple selection
   if (activeMode === 'Jupiter') {
     if (!couplePlayer1 || !couplePlayer2) {
       toast(t('toastSelectCouple')); return;
@@ -757,17 +735,15 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     if (couplePlayer1 === couplePlayer2) {
       toast(t('toastCoupleSamePlayer')); return;
     }
-    // Refresh couple dropdowns to ensure they reflect final role assignments
     populateCoupleDropdowns();
   }
 
   if (!selectedWinner) { toast(t('toastSelectWinner')); return; }
 
-  // Collect role assignments
-  const roleRows   = document.querySelectorAll('#sides-container .role-row');
+  const roleRows    = document.querySelectorAll('#sides-container .role-row');
   const participants = [];
-  const seenIds    = new Set();
-  let valid        = true;
+  const seenIds     = new Set();
+  let valid         = true;
 
   roleRows.forEach(row => {
     const sideId   = row.dataset.side;
@@ -775,19 +751,16 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     const playerId = row.querySelector('.player-select').value;
 
     if (!playerId || playerId === '__new__') {
-      toast(t('toastAssignAll'));
-      valid = false; return;
+      toast(t('toastAssignAll')); valid = false; return;
     }
     if (seenIds.has(playerId)) {
       const name = getPlayerById(playerId)?.name || 'Someone';
-      toast(t('toastDuplicate', name));
-      valid = false; return;
+      toast(t('toastDuplicate', name)); valid = false; return;
     }
     seenIds.add(playerId);
 
     let outcome;
     if (selectedWinner === 'couple') {
-      // Couple wins: only the 2 coupled players win, everyone else loses
       outcome = (playerId === couplePlayer1 || playerId === couplePlayer2) ? 'won' : 'lost';
     } else {
       outcome = sideId === selectedWinner ? 'won' : 'lost';
@@ -797,7 +770,6 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
 
   if (!valid) return;
 
-  // Collect watchers
   document.querySelectorAll('.watcher-select').forEach(sel => {
     const playerId = sel.value;
     if (!playerId || playerId === '__new__') return;
@@ -814,7 +786,7 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
   const coupleIds = activeMode === 'Jupiter' ? [couplePlayer1, couplePlayer2] : null;
   const game = { id: uid(), date, notes, mode: activeMode, doubleScore, coupleIds, participants };
   const btn  = document.getElementById('save-game-btn');
-  btn.disabled   = true;
+  btn.disabled    = true;
   btn.textContent = t('savingBtn');
 
   try {
@@ -827,24 +799,24 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     toast(t('toastGameSaveErr'));
     console.error(err);
   } finally {
-    btn.disabled   = false;
+    btn.disabled    = false;
     btn.textContent = t('saveGameBtn');
   }
 });
 
 function resetLogForm() {
-  document.getElementById('game-date').value              = todayISO();
-  document.getElementById('game-notes').value             = '';
-  document.getElementById('double-score-toggle').checked  = false;
+  document.getElementById('game-date').value             = todayISO();
+  document.getElementById('game-notes').value            = '';
+  document.getElementById('double-score-toggle').checked = false;
   couplePlayer1 = null;
   couplePlayer2 = null;
   document.getElementById('jupiter-couple-section').style.display = 'none';
   document.getElementById('couple-type-indicator').innerHTML      = '';
-  document.getElementById('log-step-assign').style.display = 'none';
-  document.getElementById('log-step-mode').style.display   = 'block';
-  document.getElementById('sides-container').innerHTML      = '';
+  document.getElementById('log-step-assign').style.display  = 'none';
+  document.getElementById('log-step-mode').style.display    = 'block';
+  document.getElementById('sides-container').innerHTML       = '';
   document.getElementById('winner-side-container').innerHTML = '';
-  document.getElementById('watcher-list').innerHTML         = '';
+  document.getElementById('watcher-list').innerHTML          = '';
   activeMode = null; selectedWinner = null; watcherCount = 0;
 }
 
@@ -865,7 +837,7 @@ function renderLeaderboard() {
       <td><span class="rank-badge ${rankClass}">${rank}</span></td>
       <td class="player-name-cell">
         ${esc(player.name)}
-        ${isAdmin ? `<button class="btn-blackbox admin-action" title="${t('blackboxTitle')}" onclick="openBlackbox('${player.id}')">🎲</button>` : ''}
+        ${isAdmin ? `<button class="btn-blackbox" title="${t('blackboxTitle')}" onclick="openBlackbox('${player.id}')">🎲</button>` : ''}
       </td>
       <td class="num"><span class="score-value">${stats.score}</span></td>
       <td class="num">${stats.played}</td>
@@ -896,26 +868,24 @@ function renderLeaderboard() {
 // ═══════════════════════════════════════════
 //  BLACKBOX / 暗箱操作
 // ═══════════════════════════════════════════
-
 function openBlackbox(playerId) {
   if (!isAdmin) return;
   const player = getPlayerById(playerId);
   if (!player) return;
   const stats  = computePlayerStats(playerId);
 
-  // Build modal content
   const overlay = document.getElementById('blackbox-overlay');
-  document.getElementById('bb-player-name').textContent  = player.name;
+  document.getElementById('bb-player-name').textContent   = player.name;
   document.getElementById('bb-current-score').textContent = stats.score;
   document.getElementById('bb-delta-input').value         = '';
   document.getElementById('bb-reason-input').value        = '';
   document.getElementById('bb-preview').textContent       = '';
+  document.getElementById('bb-preview').className         = 'bb-preview';
   overlay.dataset.playerId = playerId;
   overlay.classList.remove('hidden');
   document.getElementById('bb-delta-input').focus();
 }
 
-// Live preview
 document.getElementById('bb-delta-input').addEventListener('input', () => {
   const overlay  = document.getElementById('blackbox-overlay');
   const playerId = overlay.dataset.playerId;
@@ -983,8 +953,8 @@ function renderHistory() {
     const played  = game.participants.filter(p => p.status === 'played').length;
     const watched = game.participants.filter(p => p.status === 'watched').length;
 
-    // Blackbox entry — render as a simple one-row adjustment card
-    if (game.mode === 'blackbox') {
+    if (game.mode === 'blackbox' && !isAdmin) return '';
+        if (game.mode === 'blackbox') {
       const p      = game.participants[0];
       const pid    = p?.playerId || p?.player_id;
       const player = getPlayerById(pid);
@@ -1011,7 +981,7 @@ function renderHistory() {
                 <td style="font-family:var(--font-mono);font-size:0.9rem" class="${cls}">${sign}${delta}</td>
               </tr></tbody>
             </table>
-            <div class="history-actions admin-action" style="display:${isAdmin?'':'none'}">
+            <div class="history-actions" style="display:${isAdmin?'flex':'none'}">
               <button class="btn btn-danger" onclick="deleteGame('${game.id}')">${t('deleteGameBtn')}</button>
             </div>
           </div>
@@ -1019,15 +989,6 @@ function renderHistory() {
     }
 
     const modeLabel = game.mode ? tMode(game.mode) : '';
-
-    // Group players by side
-    const sideMap = {};
-    game.participants.forEach(p => {
-      if (p.status !== 'played') return;
-      const sid = p.sideId || p.side_id || 'unknown';
-      if (!sideMap[sid]) sideMap[sid] = [];
-      sideMap[sid].push(p);
-    });
 
     const rows = game.participants.map(p => {
       const pid    = p.playerId || p.player_id;
@@ -1062,7 +1023,7 @@ function renderHistory() {
             <span class="history-date">${formatDate(game.date)}</span>
             ${modeLabel ? `<span class="badge badge-mode">${esc(modeLabel)}</span>` : ''}
             ${(game.double_score || game.doubleScore) ? `<span class="badge badge-double">${t('badgeDouble')}</span>` : ''}
-            ${(game.coupleIds) ? `<span class="badge badge-couple">💕</span>` : ''}
+            ${game.coupleIds ? `<span class="badge badge-couple">💕</span>` : ''}
             ${game.notes ? `<span class="history-notes">${esc(game.notes)}</span>` : ''}
           </div>
           <div class="history-summary">${t('historySummary', played, watched)}</div>
@@ -1072,7 +1033,7 @@ function renderHistory() {
             <thead><tr><th>${t('colPlayer')}</th><th>${t('colRole')}</th><th>${t('colSide')}</th><th>${t('colOutcome')}</th><th>${t('colPts')}</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          <div class="history-actions admin-action" style="display:${isAdmin?'':'none'}">
+          <div class="history-actions" style="display:${isAdmin?'flex':'none'}">
             <button class="btn btn-danger" onclick="deleteGame('${game.id}')">${t('deleteGameBtn')}</button>
           </div>
         </div>
@@ -1103,41 +1064,32 @@ async function deleteGame(gameId) {
 // ═══════════════════════════════════════════
 //  LANGUAGE TOGGLE
 // ═══════════════════════════════════════════
-
-/** Walk all [data-i18n] elements and update their text + placeholders */
 function applyTranslations() {
-  // Text content
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     const val = t(key);
     if (val && typeof val === 'string') el.textContent = val;
   });
 
-  // Placeholder attributes
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.getAttribute('data-i18n-ph');
     const val = t(key);
     if (val) el.placeholder = val;
   });
 
-  // Lang button label (shows the OTHER language to switch to)
   const langBtn = document.getElementById('lang-btn');
   if (langBtn) langBtn.textContent = t('langBtn');
 
-  // Admin lock button tooltip
   const lockBtn = document.getElementById('admin-lock-btn');
   if (lockBtn) lockBtn.title = isAdmin ? t('adminLockHint') : t('adminLoginHint');
 
-  // Re-render dynamic sections so their injected HTML is also translated
   renderLeaderboard();
   renderPlayersList();
   renderHistory();
 
-  // Update html lang attribute
   document.documentElement.lang = currentLang;
 }
 
-// Lang toggle button
 document.getElementById('lang-btn').addEventListener('click', () => {
   setLang(currentLang === 'zh' ? 'en' : 'zh');
   applyTranslations();
@@ -1146,47 +1098,38 @@ document.getElementById('lang-btn').addEventListener('click', () => {
 // ═══════════════════════════════════════════
 //  ADMIN MODE
 // ═══════════════════════════════════════════
-
 function applyAdminState() {
   const badge   = document.getElementById('admin-badge');
   const lockBtn = document.getElementById('admin-lock-btn');
 
   if (isAdmin) {
-    // Show admin tabs
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
-    // Show admin-only buttons inside pages
-    document.querySelectorAll('.admin-action').forEach(el => el.style.display = '');
     badge.classList.remove('hidden');
     lockBtn.textContent = '🔓';
     lockBtn.title = t('adminLockHint');
   } else {
-    // Hide admin tabs
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-    // Hide admin-only buttons inside pages
-    document.querySelectorAll('.admin-action').forEach(el => el.style.display = 'none');
     badge.classList.add('hidden');
     lockBtn.textContent = '🔒';
     lockBtn.title = t('adminLoginHint');
-    // If currently on an admin-only tab, redirect to leaderboard
     const activeTab = document.querySelector('.tab-btn.active');
     if (activeTab && activeTab.classList.contains('admin-only')) {
       document.querySelector('[data-tab="leaderboard"]').click();
     }
   }
-  // Re-render leaderboard so blackbox buttons appear/disappear immediately
+  // Re-render so blackbox buttons and delete buttons show/hide correctly
   renderLeaderboard();
+  renderHistory();
+  renderPlayersList();
 }
 
-// Lock button — toggle login/logout
 document.getElementById('admin-lock-btn').addEventListener('click', () => {
   if (isAdmin) {
-    // Already admin — clicking locks
     isAdmin = false;
     sessionStorage.removeItem('mafiaAdmin');
     applyAdminState();
     toast(t('adminLockToast'));
   } else {
-    // Not admin — open login modal
     document.getElementById('admin-password-input').value = '';
     document.getElementById('admin-error').classList.add('hidden');
     document.getElementById('admin-modal-title').textContent = t('adminModalTitle');
