@@ -496,10 +496,20 @@ function activateMode(modeKey) {
   document.getElementById('log-step-assign').style.display = 'block';
   document.getElementById('active-mode-label').textContent = tMode(modeKey);
 
-  const coupleSection = document.getElementById('jupiter-couple-section');
-  coupleSection.style.display = modeKey === 'Jupiter' ? 'block' : 'none';
+  // Show/hide Jupiter couple section
+  document.getElementById('jupiter-couple-section').style.display =
+    modeKey === 'Jupiter' ? 'block' : 'none';
 
-  buildRoleAssignmentUI(modeKey);
+  // Show/hide custom roles section vs normal sides container
+  const isCustom = modeKey === 'Custom';
+  document.getElementById('custom-roles-section').style.display = isCustom ? 'block' : 'none';
+  document.getElementById('sides-container').style.display       = isCustom ? 'none'  : 'block';
+
+  if (isCustom) {
+    buildCustomRoleUI();
+  } else {
+    buildRoleAssignmentUI(modeKey);
+  }
   buildWinnerButtons(modeKey);
   document.getElementById('watcher-list').innerHTML = '';
   watcherCount = 0;
@@ -509,8 +519,12 @@ document.getElementById('back-to-mode-btn').addEventListener('click', () => {
   document.getElementById('log-step-assign').style.display  = 'none';
   document.getElementById('log-step-mode').style.display    = 'block';
   document.getElementById('sides-container').innerHTML       = '';
+  document.getElementById('sides-container').style.display   = 'block';
   document.getElementById('winner-side-container').innerHTML = '';
   document.getElementById('watcher-list').innerHTML          = '';
+  document.getElementById('custom-roles-section').style.display = 'none';
+  document.getElementById('custom-villain-roles').innerHTML  = '';
+  document.getElementById('custom-village-roles').innerHTML  = '';
   activeMode     = null;
   selectedWinner = null;
   watcherCount   = 0;
@@ -549,6 +563,65 @@ function buildRoleAssignmentUI(modeKey) {
   });
 
   if (activeMode === 'Jupiter') populateCoupleDropdowns();
+}
+
+// ═══════════════════════════════════════════
+//  CUSTOM MODE ROLE UI
+// ═══════════════════════════════════════════
+function buildCustomRoleUI() {
+  buildCustomSideRows('custom-villain-roles', 'wolf',    4);
+  buildCustomSideRows('custom-village-roles', 'village', 8);
+}
+
+function buildCustomSideRows(containerId, sideId, count) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  for (let i = 0; i < count; i++) {
+    // Row wrapper
+    const row = document.createElement('div');
+    row.className = 'custom-role-row';
+    row.dataset.side  = sideId;
+    row.dataset.index = i;
+
+    // Role name text input
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.className   = 'custom-role-input';
+    input.placeholder = t('customRolePh');
+    input.dataset.side  = sideId;
+    input.dataset.index = i;
+
+    // Player select dropdown
+    const sel = document.createElement('select');
+    sel.className = 'player-select custom-player-select';
+    sel.dataset.side  = sideId;
+    sel.dataset.index = i;
+
+    // Populate options
+    const blankOpt = document.createElement('option');
+    blankOpt.value       = '';
+    blankOpt.textContent = t('assignPh');
+    sel.appendChild(blankOpt);
+
+    const newOpt = document.createElement('option');
+    newOpt.value       = '__new__';
+    newOpt.textContent = t('addNewPlayer');
+    sel.appendChild(newOpt);
+
+    state.players.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value       = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+
+    wirePlayerSelect(sel);
+
+    row.appendChild(input);
+    row.appendChild(sel);
+    container.appendChild(row);
+  }
 }
 
 function buildRoleRow(sideId, role, index, total) {
@@ -598,8 +671,23 @@ function refreshAllPlayerSelects() {
 //  WINNER SELECTION (Step 3)
 // ═══════════════════════════════════════════
 function buildWinnerButtons(modeKey) {
-  const mode      = GAME_MODES[modeKey];
   const container = document.getElementById('winner-side-container');
+
+  // Custom mode: always wolf vs village
+  if (modeKey === 'Custom') {
+    container.innerHTML = `
+      <button class="winner-btn side-wolf" data-side="wolf"
+        onclick="selectWinner('wolf', this)">
+        ${tSide('wolf')} ${t('winsLabel')}
+      </button>
+      <button class="winner-btn side-village" data-side="village"
+        onclick="selectWinner('village', this)">
+        ${tSide('village')} ${t('winsLabel')}
+      </button>`;
+    return;
+  }
+
+  const mode = GAME_MODES[modeKey];
   let btns = mode.sides.map(side => `
     <button class="winner-btn ${side.color}" data-side="${side.id}"
       onclick="selectWinner('${side.id}', this)">
@@ -740,14 +828,21 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
 
   if (!selectedWinner) { toast(t('toastSelectWinner')); return; }
 
-  const roleRows    = document.querySelectorAll('#sides-container .role-row');
   const participants = [];
   const seenIds     = new Set();
   let valid         = true;
 
+  // Collect role rows — from custom UI or standard sides-container
+  const isCustomMode = activeMode === 'Custom';
+  const roleRows = isCustomMode
+    ? document.querySelectorAll('#custom-roles-section .custom-role-row')
+    : document.querySelectorAll('#sides-container .role-row');
+
   roleRows.forEach(row => {
     const sideId   = row.dataset.side;
-    const role     = row.dataset.role;
+    const role     = isCustomMode
+      ? (row.querySelector('.custom-role-input')?.value.trim() || t('customRoleDefault'))
+      : row.dataset.role;
     const playerId = row.querySelector('.player-select').value;
 
     if (!playerId || playerId === '__new__') {
@@ -765,21 +860,14 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     const isJupiter = (role === 'Jupiter');
 
     if (activeMode === 'Jupiter' && isMixed) {
-      // Mixed couple (1 wolf + 1 villager):
       if (selectedWinner === 'couple') {
-        // Couple wins: couple members + Jupiter win, everyone else loses
         outcome = (isCoupleMember || isJupiter) ? 'won' : 'lost';
       } else if (selectedWinner === 'village') {
-        // Village wins: only non-couple villagers win
-        // Couple members, Jupiter, and all wolves lose
         outcome = (sideId === 'village' && !isCoupleMember && !isJupiter) ? 'won' : 'lost';
       } else {
-        // Wolf wins: only non-couple wolves win
-        // Couple members, Jupiter, and all villagers lose
         outcome = (sideId === 'wolf' && !isCoupleMember) ? 'won' : 'lost';
       }
     } else if (activeMode === 'Jupiter' && !isMixed) {
-      // Same-side couple: Jupiter is normal village, standard win/loss
       outcome = sideId === selectedWinner ? 'won' : 'lost';
     } else {
       outcome = sideId === selectedWinner ? 'won' : 'lost';
@@ -833,9 +921,13 @@ function resetLogForm() {
   document.getElementById('couple-type-indicator').innerHTML      = '';
   document.getElementById('log-step-assign').style.display  = 'none';
   document.getElementById('log-step-mode').style.display    = 'block';
-  document.getElementById('sides-container').innerHTML       = '';
-  document.getElementById('winner-side-container').innerHTML = '';
-  document.getElementById('watcher-list').innerHTML          = '';
+  document.getElementById('sides-container').innerHTML           = '';
+  document.getElementById('sides-container').style.display       = 'block';
+  document.getElementById('winner-side-container').innerHTML      = '';
+  document.getElementById('watcher-list').innerHTML               = '';
+  document.getElementById('custom-roles-section').style.display  = 'none';
+  document.getElementById('custom-villain-roles').innerHTML       = '';
+  document.getElementById('custom-village-roles').innerHTML       = '';
   activeMode = null; selectedWinner = null; watcherCount = 0;
 }
 

@@ -91,7 +91,13 @@ const TRANSLATIONS = {
     watcherPh:       '— 选择围观者 —',
 
     // ── Game Modes ───────────────────────────
-    modeShouMuRen:      '守墓人',
+    modeCustom:      '自定义',
+    modeCustomDesc:  '12人 · 自定义角色',
+    customVillainSide: '🐺 坏人阵营（4人）',
+    customVillageSide: '🏘 好人阵营（8人）',
+    customRolePh:    '角色名称（可选）',
+    customRoleDefault: '未知角色',
+        modeShouMuRen:      '守墓人',
     modeShouMuRenDesc:  '12人 · 特殊守卫角色',
     modeNormal12:       '标准 · 12人',
     modeNormal12Desc:   '12人 · 经典配置',
@@ -252,7 +258,7 @@ const TRANSLATIONS = {
     coupleWins:      'Couple Wins',
     coupleMixed:     '⚠️ Mixed couple — Couple win condition enabled',
     coupleSameSide:  '✓ Same-side couple — No extra win condition',
-    toastSelectCouple:    'Please select 2 players for Jupiter couple.',
+    toastSelectCouple:    "Please select 2 players for Jupiter's couple.",
     toastCoupleSamePlayer:'The couple must be 2 different players.',
     changeModeBtn:   '← Change Mode',
     watchersTitle:   'Watchers (optional)',
@@ -264,7 +270,13 @@ const TRANSLATIONS = {
     addNewPlayer:    '➕ Add new player…',
     watcherPh:       '— Select watcher —',
 
-    modeShouMuRen:      'Tomb Keeper',
+    modeCustom:      'Custom',
+    modeCustomDesc:  '12 players · Custom roles',
+    customVillainSide: '🐺 Villain Side (4 players)',
+    customVillageSide: '🏘 Village Side (8 players)',
+    customRolePh:    'Role name (optional)',
+    customRoleDefault: 'Unknown Role',
+        modeShouMuRen:      'Tomb Keeper',
     modeShouMuRenDesc:  '12 players · Special guardian role',
     modeNormal12:       'Normal · 12P',
     modeNormal12Desc:   '12 players · Classic setup',
@@ -404,6 +416,7 @@ function tSide(sideId) {
 // ─── Mode label lookup ───────────────────────
 const MODE_LABEL_MAP = {
   'TombKeeper': 'modeShouMuRen',
+  'Custom':     'modeCustom',
   'Normal12':  'modeNormal12',
   'Normal9':   'modeNormal9',
   'WhiteWolf': 'modeWhiteWolf',

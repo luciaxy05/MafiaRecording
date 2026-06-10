@@ -106,6 +106,11 @@
               <span class="mode-name" data-i18n="modeJupiter">丘比特</span>
               <span class="mode-desc" data-i18n="modeJupiterDesc">12人 · 外来势力</span>
             </button>
+            <button class="mode-card" data-mode="Custom">
+              <span class="mode-icon">✏️</span>
+              <span class="mode-name" data-i18n="modeCustom">自定义</span>
+              <span class="mode-desc" data-i18n="modeCustomDesc">12人 · 自定义角色</span>
+            </button>
           </div>
         </div>
       </div>
@@ -122,6 +127,18 @@
           <hr class="divider" />
           <p class="step-label" data-i18n="step2Label">第二步 — 为每个角色分配玩家</p>
           <div id="sides-container"></div>
+
+          <!-- CUSTOM MODE ROLE ENTRY — only shown for Custom mode -->
+          <div id="custom-roles-section" style="display:none">
+            <div class="side-block side-wolf">
+              <div class="side-header" data-i18n="customVillainSide">🐺 坏人阵营（4人）</div>
+              <div class="side-roles" id="custom-villain-roles"></div>
+            </div>
+            <div class="side-block side-village" style="margin-top:1rem">
+              <div class="side-header" data-i18n="customVillageSide">🏘 好人阵营（8人）</div>
+              <div class="side-roles" id="custom-village-roles"></div>
+            </div>
+          </div>
 
           <!-- JUPITER COUPLE STEP — only shown for Jupiter mode -->
           <div id="jupiter-couple-section" style="display:none">
@@ -153,8 +170,8 @@
           <hr class="divider" />
 
           <div class="participants-header">
-            <h3 data-i18n="watchersTitle">围观者（可选）</h3>
-            <button class="btn btn-secondary" id="add-watcher-btn" data-i18n="addWatcherBtn">+ 添加围观者</button>
+            <h3 data-i18n="watchersTitle">旁观者（可选）</h3>
+            <button class="btn btn-secondary" id="add-watcher-btn" data-i18n="addWatcherBtn">+ 添加旁观者</button>
           </div>
           <div id="watcher-list"></div>
 
