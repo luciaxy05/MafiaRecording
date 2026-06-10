@@ -760,8 +760,27 @@ document.getElementById('save-game-btn').addEventListener('click', async () => {
     seenIds.add(playerId);
 
     let outcome;
-    if (selectedWinner === 'couple') {
-      outcome = (playerId === couplePlayer1 || playerId === couplePlayer2) ? 'won' : 'lost';
+    const isMixed = isMixedCouple();
+    const isCoupleMember = (playerId === couplePlayer1 || playerId === couplePlayer2);
+    const isJupiter = (role === 'Jupiter');
+
+    if (activeMode === 'Jupiter' && isMixed) {
+      // Mixed couple (1 wolf + 1 villager):
+      if (selectedWinner === 'couple') {
+        // Couple wins: couple members + Jupiter win, everyone else loses
+        outcome = (isCoupleMember || isJupiter) ? 'won' : 'lost';
+      } else if (selectedWinner === 'village') {
+        // Village wins: only non-couple villagers win
+        // Couple members, Jupiter, and all wolves lose
+        outcome = (sideId === 'village' && !isCoupleMember && !isJupiter) ? 'won' : 'lost';
+      } else {
+        // Wolf wins: only non-couple wolves win
+        // Couple members, Jupiter, and all villagers lose
+        outcome = (sideId === 'wolf' && !isCoupleMember) ? 'won' : 'lost';
+      }
+    } else if (activeMode === 'Jupiter' && !isMixed) {
+      // Same-side couple: Jupiter is normal village, standard win/loss
+      outcome = sideId === selectedWinner ? 'won' : 'lost';
     } else {
       outcome = sideId === selectedWinner ? 'won' : 'lost';
     }
