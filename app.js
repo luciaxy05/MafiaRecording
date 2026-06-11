@@ -651,6 +651,8 @@ function wirePlayerSelect(sel) {
         sel.value = '';
       }
     }
+    // After any selection change, hide already-used players from other dropdowns
+    filterUsedPlayers();
   });
 }
 
@@ -664,6 +666,34 @@ function refreshAllPlayerSelects() {
         `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${esc(p.name)}</option>`
       ).join('')}`;
     wirePlayerSelect(sel);
+  });
+  filterUsedPlayers();
+}
+
+/**
+ * Hide already-selected players from all role/watcher dropdowns.
+ * Skips the Jupiter couple selects so the same player can appear twice there.
+ */
+function filterUsedPlayers() {
+  // Collect all currently selected playerIds from role + watcher selects
+  // (exclude couple selects)
+  const usedIds = new Set();
+  document.querySelectorAll(
+    '#sides-container .player-select, #custom-roles-section .player-select, .watcher-select'
+  ).forEach(sel => {
+    if (sel.value && sel.value !== '__new__') usedIds.add(sel.value);
+  });
+
+  // Now update every role/watcher select — hide used players except the one this select owns
+  document.querySelectorAll(
+    '#sides-container .player-select, #custom-roles-section .player-select, .watcher-select'
+  ).forEach(sel => {
+    const ownValue = sel.value;
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value || opt.value === '__new__') return; // keep blank + add-new
+      // Hide if used by someone else; show if it's this select's own value or not used
+      opt.hidden = usedIds.has(opt.value) && opt.value !== ownValue;
+    });
   });
 }
 
@@ -790,20 +820,51 @@ document.getElementById('add-watcher-btn').addEventListener('click', () => {
 function addWatcherRow() {
   const id   = ++watcherCount;
   const list = document.getElementById('watcher-list');
-  const row  = document.createElement('div');
+
+  const row = document.createElement('div');
   row.className     = 'watcher-row';
   row.dataset.rowId = id;
-  row.innerHTML = `
-    <div class="form-group" style="flex:1">
-      <select class="player-select watcher-select">
-        <option value="">${t('watcherPh')}</option>
-        <option value="__new__">${t('addNewPlayer')}</option>
-        ${state.players.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
-      </select>
-    </div>
-    <button class="btn-icon" onclick="this.closest('.watcher-row').remove()">✕</button>`;
+
+  // Build select using DOM so filterUsedPlayers can hide options immediately
+  const wrap = document.createElement('div');
+  wrap.className = 'form-group';
+  wrap.style.flex = '1';
+
+  const sel = document.createElement('select');
+  sel.className = 'player-select watcher-select';
+
+  const blankOpt = document.createElement('option');
+  blankOpt.value       = '';
+  blankOpt.textContent = t('watcherPh');
+  sel.appendChild(blankOpt);
+
+  const newOpt = document.createElement('option');
+  newOpt.value       = '__new__';
+  newOpt.textContent = t('addNewPlayer');
+  sel.appendChild(newOpt);
+
+  state.players.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value       = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+
+  wrap.appendChild(sel);
+
+  // Remove button also re-runs filter so that player reappears in other dropdowns
+  const removeBtn = document.createElement('button');
+  removeBtn.className   = 'btn-icon';
+  removeBtn.textContent = '✕';
+  removeBtn.onclick     = () => { row.remove(); filterUsedPlayers(); };
+
+  row.appendChild(wrap);
+  row.appendChild(removeBtn);
   list.appendChild(row);
-  wirePlayerSelect(row.querySelector('.player-select'));
+
+  wirePlayerSelect(sel);
+  // Apply current filter immediately so already-used players are hidden
+  filterUsedPlayers();
 }
 
 // ═══════════════════════════════════════════
