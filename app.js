@@ -525,6 +525,8 @@ document.getElementById('back-to-mode-btn').addEventListener('click', () => {
   document.getElementById('custom-roles-section').style.display = 'none';
   document.getElementById('custom-villain-roles').innerHTML  = '';
   document.getElementById('custom-village-roles').innerHTML  = '';
+  document.getElementById('custom-wolf-count').value    = 4;
+  document.getElementById('custom-village-count').value = 8;
   activeMode     = null;
   selectedWinner = null;
   watcherCount   = 0;
@@ -569,11 +571,61 @@ function buildRoleAssignmentUI(modeKey) {
 //  CUSTOM MODE ROLE UI
 // ═══════════════════════════════════════════
 function buildCustomRoleUI() {
-  buildCustomSideRows('custom-villain-roles', 'wolf',    4);
-  buildCustomSideRows('custom-village-roles', 'village', 8);
+  const wolfInput    = document.getElementById('custom-wolf-count');
+  const villageInput = document.getElementById('custom-village-count');
+
+  const wolfCount    = parseInt(wolfInput.value, 10)    || 1;
+  const villageCount = parseInt(villageInput.value, 10) || 1;
+
+  buildCustomSideRows('custom-villain-roles', 'wolf',    wolfCount);
+  buildCustomSideRows('custom-village-roles', 'village', villageCount);
+  updateCustomHeaders(wolfCount, villageCount);
 }
 
-function buildCustomSideRows(containerId, sideId, count) {
+/** Update the side headers and total count display */
+function updateCustomHeaders(wolfCount, villageCount) {
+  const total = wolfCount + villageCount;
+  document.getElementById('custom-villain-header').textContent =
+    `${t('customVillainSideBase')}（${wolfCount}${t('customPeopleSuffix')}）`;
+  document.getElementById('custom-village-header').textContent =
+    `${t('customVillageSideBase')}（${villageCount}${t('customPeopleSuffix')}）`;
+  document.getElementById('custom-total-count').textContent = total;
+}
+
+/** Rebuild role rows when counts change, preserving already-entered data where possible */
+function rebuildCustomRoleRows() {
+  const wolfInput    = document.getElementById('custom-wolf-count');
+  const villageInput = document.getElementById('custom-village-count');
+
+  let wolfCount    = parseInt(wolfInput.value, 10);
+  let villageCount = parseInt(villageInput.value, 10);
+
+  // Clamp to sensible bounds
+  if (isNaN(wolfCount)    || wolfCount    < 1) wolfCount    = 1;
+  if (isNaN(villageCount) || villageCount < 1) villageCount = 1;
+  if (wolfCount    > 30) wolfCount    = 30;
+  if (villageCount > 30) villageCount = 30;
+  wolfInput.value    = wolfCount;
+  villageInput.value = villageCount;
+
+  // Preserve existing entries (role name + selected player) before rebuilding
+  const preserve = (containerId) => {
+    const rows = document.querySelectorAll(`#${containerId} .custom-role-row`);
+    return Array.from(rows).map(row => ({
+      role:     row.querySelector('.custom-role-input')?.value || '',
+      playerId: row.querySelector('.player-select')?.value     || '',
+    }));
+  };
+  const prevWolf    = preserve('custom-villain-roles');
+  const prevVillage = preserve('custom-village-roles');
+
+  buildCustomSideRows('custom-villain-roles', 'wolf',    wolfCount,    prevWolf);
+  buildCustomSideRows('custom-village-roles', 'village', villageCount, prevVillage);
+  updateCustomHeaders(wolfCount, villageCount);
+  filterUsedPlayers();
+}
+
+function buildCustomSideRows(containerId, sideId, count, prevData = []) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
 
@@ -591,6 +643,7 @@ function buildCustomSideRows(containerId, sideId, count) {
     input.placeholder = t('customRolePh');
     input.dataset.side  = sideId;
     input.dataset.index = i;
+    if (prevData[i]) input.value = prevData[i].role;
 
     // Player select dropdown
     const sel = document.createElement('select');
@@ -616,6 +669,8 @@ function buildCustomSideRows(containerId, sideId, count) {
       sel.appendChild(opt);
     });
 
+    if (prevData[i] && prevData[i].playerId) sel.value = prevData[i].playerId;
+
     wirePlayerSelect(sel);
 
     row.appendChild(input);
@@ -623,6 +678,10 @@ function buildCustomSideRows(containerId, sideId, count) {
     container.appendChild(row);
   }
 }
+
+// Wire up count input listeners (rebuild rows on change, debounced via 'change' event)
+document.getElementById('custom-wolf-count').addEventListener('change', rebuildCustomRoleRows);
+document.getElementById('custom-village-count').addEventListener('change', rebuildCustomRoleRows);
 
 function buildRoleRow(sideId, role, index, total) {
   const label = total > 1 ? `${tRole(role)} ${index + 1}` : tRole(role);
@@ -1017,6 +1076,8 @@ function resetLogForm() {
   document.getElementById('custom-roles-section').style.display  = 'none';
   document.getElementById('custom-villain-roles').innerHTML       = '';
   document.getElementById('custom-village-roles').innerHTML       = '';
+  document.getElementById('custom-wolf-count').value    = 4;
+  document.getElementById('custom-village-count').value = 8;
   activeMode = null; selectedWinner = null; watcherCount = 0;
 }
 

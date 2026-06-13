@@ -1351,3 +1351,54 @@ select option {
   box-sizing: border-box;
   width: 100%;
 }
+
+/* ═══════════════════════════════════════════
+   CUSTOM MODE COUNT CONFIGURATION
+═══════════════════════════════════════════ */
+.custom-count-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.custom-count-row .form-group {
+  flex: 0 0 120px;
+  min-width: 100px;
+}
+
+.custom-count-row input[type="number"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 0.55rem 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.custom-count-row input[type="number"]:focus {
+  border-color: var(--gold-dim);
+  outline: none;
+}
+
+.custom-total-display {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-bottom: 0.6rem;
+  margin-left: auto;
+}
+
+.custom-total-display strong {
+  color: var(--gold);
+  font-size: 1.1rem;
+}

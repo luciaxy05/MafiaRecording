@@ -130,12 +130,27 @@
 
           <!-- CUSTOM MODE ROLE ENTRY — only shown for Custom mode -->
           <div id="custom-roles-section" style="display:none">
+            <div class="custom-count-row">
+              <div class="form-group">
+                <label for="custom-wolf-count" data-i18n="customWolfCountLabel">坏人人数</label>
+                <input type="number" id="custom-wolf-count" min="1" max="30" value="4" />
+              </div>
+              <div class="form-group">
+                <label for="custom-village-count" data-i18n="customVillageCountLabel">好人人数</label>
+                <input type="number" id="custom-village-count" min="1" max="30" value="8" />
+              </div>
+              <div class="custom-total-display">
+                <span data-i18n="customTotalLabel">总人数</span>:
+                <strong id="custom-total-count">12</strong>
+              </div>
+            </div>
+
             <div class="side-block side-wolf">
-              <div class="side-header" data-i18n="customVillainSide">🐺 坏人阵营（4人）</div>
+              <div class="side-header" id="custom-villain-header" data-i18n="customVillainSide">🐺 坏人阵营（4人）</div>
               <div class="side-roles" id="custom-villain-roles"></div>
             </div>
             <div class="side-block side-village" style="margin-top:1rem">
-              <div class="side-header" data-i18n="customVillageSide">🏘 好人阵营（8人）</div>
+              <div class="side-header" id="custom-village-header" data-i18n="customVillageSide">🏘 好人阵营（8人）</div>
               <div class="side-roles" id="custom-village-roles"></div>
             </div>
           </div>
